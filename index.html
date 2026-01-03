@@ -3,32 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Markdown A4 完美适配</title>
+    <title>Markdown A4 多页修复版</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* ---------- 基础重置 ---------- */
+        /* ---------- 基础样式 (屏幕浏览用) ---------- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body, html {
+        
+        html, body {
             margin: 0; padding: 0;
-            height: 100%;
+            height: 100%; /* 屏幕上占满全屏 */
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f2f4f7;
-            overflow: hidden; /* 禁止整体滚动，由内部区域接管 */
+            overflow: hidden; /* 屏幕上禁止整体滚动 */
         }
 
-        /* ---------- 布局结构 ---------- */
         .app-container {
             display: flex;
             flex-direction: column;
             height: 100%;
         }
 
-        /* 1. 编辑器区域 */
+        /* 编辑器 */
         .editor-area {
             flex: 1;
-            display: flex; /* 默认显示 */
+            display: flex;
             flex-direction: column;
             background: #fff;
+            overflow: hidden;
         }
 
         textarea {
@@ -40,39 +41,41 @@
             line-height: 1.6;
             resize: none;
             outline: none;
-            color: #333;
             background: #fff;
+            color: #333;
         }
 
-        /* 2. 预览区域 */
+        /* 预览区 */
         .preview-area {
             flex: 1;
             display: none; /* 默认隐藏 */
-            background: #525659; /* 深灰背景，突出白纸 */
-            overflow-y: auto;
+            background: #525659;
+            overflow-y: auto; /* 屏幕上允许内部滚动 */
             align-items: flex-start;
             justify-content: center;
             padding-top: 20px;
-            padding-bottom: 80px; /* 给底部栏留空间 */
+            padding-bottom: 80px;
         }
 
-        /* A4 纸张容器 */
+        /* 缩放容器 */
         .a4-scaler {
-            /* 这里利用 CSS 缩放，稍后用 JS 动态计算 scale 值 */
             transform-origin: top center;
             transition: transform 0.2s ease;
         }
 
+        /* 纸张本体 */
         .a4-page {
-            width: 210mm; /* 物理宽度 */
+            width: 210mm;
             min-height: 297mm;
             background: white;
             padding: 20mm;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             color: #000;
+            /* 关键：让内容撑开高度，而不是固定 */
+            height: auto; 
         }
 
-        /* 3. 底部固定操作栏 (替代悬浮球) */
+        /* 底部操作栏 */
         .bottom-bar {
             height: 60px;
             background: #fff;
@@ -82,106 +85,113 @@
             justify-content: space-between;
             padding: 0 20px;
             z-index: 100;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            flex-shrink: 0; /* 防止被挤压 */
         }
-
-        .status-text {
-            font-size: 14px;
-            color: #666;
-            font-weight: 500;
-        }
-
-        .action-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            border: none;
-            border-radius: 6px;
-            padding: 8px 16px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-        }
-
+        
+        /* 状态与按钮 */
+        .status-text { font-size: 14px; color: #666; font-weight: 500; }
+        .action-group { display: flex; gap: 10px; }
+        .btn { border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; }
         .btn-primary { background: #007bff; color: #fff; }
         .btn-secondary { background: #f0f0f0; color: #333; }
-        .btn-ghost { background: transparent; color: #007bff; }
 
-        /* ---------- 状态切换 ---------- */
-        /* 预览模式下的样式覆写 */
+        /* 预览模式切换 */
         body.mode-preview .editor-area { display: none; }
         body.mode-preview .preview-area { display: flex; }
 
-        /* ---------- Markdown 渲染微调 ---------- */
+        /* Markdown 样式 */
         .markdown-body { font-size: 11pt; line-height: 1.6; }
-        .markdown-body h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 24px; margin-top: 0; }
-        .markdown-body h2 { border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 20px; }
+        .markdown-body h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 20px; }
         .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .markdown-body th, .markdown-body td { border: 1px solid #ddd; padding: 8px; }
+        .markdown-body pre { background: #f8f9fa; padding: 10px; white-space: pre-wrap; word-wrap: break-word; }
         .markdown-body img { max-width: 100%; }
-        .markdown-body pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: hidden; white-space: pre-wrap; word-wrap: break-word; }
 
-        /* ---------- 打印专用 (修复白页、尺寸) ---------- */
+        /* ==============================================
+           关键修复：打印样式 (修复多页截断)
+           ============================================== */
         @media print {
-            .editor-area, .bottom-bar { display: none !important; }
-            .preview-area { 
-                display: block !important; 
-                overflow: visible !important; 
-                background: white !important; 
-                padding: 0 !important; 
-                margin: 0 !important; 
-            }
-            
-            .a4-scaler {
-                transform: none !important; /* 打印时必须还原缩放，保证1:1 */
-                width: 100% !important;
-                margin: 0 !important;
-            }
+            /* 1. 彻底隐藏 UI 元素 */
+            .editor-area, .bottom-bar, .action-group { display: none !important; }
 
-            .a4-page {
-                box-shadow: none !important;
-                margin: 0 !important;
-                width: 100% !important;
-                padding: 0 !important; /* 让 @page 控制边距 */
+            /* 2. 强制重置 HTML/Body 高度和溢出 */
+            html, body {
+                height: auto !important;
                 min-height: 0 !important;
+                overflow: visible !important; /* 允许滚动/翻页 */
+                background: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
             }
 
-            /* 核心：交出控制权给打印机 */
+            /* 3. 重置布局容器，取消 Flexbox */
+            .app-container {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+            }
+
+            /* 4. 重置预览区 */
+            .preview-area {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+                background: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* 5. 禁用缩放，保证打印清晰度和完整性 */
+            .a4-scaler {
+                transform: none !important;
+                width: 100% !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* 6. 纸张样式调整：允许无限延伸 */
+            .a4-page {
+                width: 100% !important;
+                height: auto !important; /* 让内容决定高度 */
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important; /* 边距交给 @page */
+                box-shadow: none !important;
+                border: none !important;
+            }
+
+            /* 7. 打印机设置：由打印机接管分页 */
             @page {
                 size: A4;
-                margin: 20mm;
+                margin: 20mm; /* 上下左右留白 */
             }
+
+            /* 8. 优化分页逻辑 (防止标题或表格被切断) */
+            h1, h2, h3 { page-break-after: avoid; }
+            table, pre, blockquote { page-break-inside: avoid; }
         }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    
-    <!-- 编辑器 -->
     <div class="editor-area">
-        <textarea id="input" placeholder="请在此处输入 Markdown 内容..."></textarea>
+        <textarea id="input" placeholder="输入 Markdown..."></textarea>
     </div>
 
-    <!-- 预览器 -->
     <div class="preview-area" id="previewContainer">
         <div class="a4-scaler" id="scaler">
             <div id="output" class="a4-page markdown-body"></div>
         </div>
     </div>
 
-    <!-- 底部栏 -->
     <div class="bottom-bar">
-        <div class="status-text" id="statusLabel">正在编辑</div>
+        <div class="status-text" id="statusLabel">编辑中</div>
         <div class="action-group">
-            <!-- 编辑模式显示 -->
-            <button class="btn btn-primary" id="btnToPreview" onclick="switchMode('preview')">预览效果</button>
-            
-            <!-- 预览模式显示 (默认隐藏) -->
-            <button class="btn btn-secondary" id="btnToEdit" onclick="switchMode('edit')" style="display:none;">返回编辑</button>
-            <button class="btn btn-primary" id="btnPrint" onclick="window.print()" style="display:none;">🖨️ 打印/存PDF</button>
+            <button class="btn btn-primary" id="btnToPreview" onclick="switchMode('preview')">预览</button>
+            <button class="btn btn-secondary" id="btnToEdit" onclick="switchMode('edit')" style="display:none;">编辑</button>
+            <button class="btn btn-primary" id="btnPrint" onclick="window.print()" style="display:none;">🖨️ 打印</button>
         </div>
     </div>
 </div>
@@ -194,76 +204,43 @@
     const btnToPreview = document.getElementById('btnToPreview');
     const btnToEdit = document.getElementById('btnToEdit');
     const btnPrint = document.getElementById('btnPrint');
-    
-    // 默认文本
-    const defaultText = `# 完美适配版
 
-不再需要左右滑动。
-
-## 什么是自动适配？
-我们通过算法计算你的手机屏幕宽度，自动将 A4 纸张 **"缩小"** 到刚好能放进你的屏幕。
-
-- **所见即所得**：虽然屏幕上看着字小，但换行位置和最终打印是一模一样的。
-- **操作舒适**：底部按钮，不挡视线。
-
-## 打印测试
-点击右下角 **打印** 按钮，选择 **存储到文件/PDF** 即可。
-`;
-
-    input.value = defaultText;
-
-    // 渲染 Markdown
-    function render() {
-        output.innerHTML = marked.parse(input.value.trim());
+    // 生成大量测试文本以验证多页打印
+    let longText = "# 多页打印测试\n\n此文档用于测试长内容是否会被截断。\n\n";
+    for(let i=1; i<=50; i++) {
+        longText += `### 第 ${i} 章节\n这是一段测试文字，用于填充页面高度，确保能够正确打印出多张纸。如果只能打印第一页，说明 overflow 设置有问题。\n\n`;
     }
 
-    // 核心逻辑：计算缩放比例
+    input.value = longText;
+
+    function render() {
+        output.innerHTML = marked.parse(input.value);
+    }
+
+    // 屏幕适配算法 (仅影响视觉预览，不影响打印)
     function fitToScreen() {
         if (!document.body.classList.contains('mode-preview')) return;
-
-        // A4 纸像素宽度 (210mm @ 96dpi ≈ 794px)
         const a4WidthPx = 794; 
-        // 手机屏幕宽度 (减去一点边距)
         const screenWidth = window.innerWidth - 20; 
-
-        // 计算缩放比例 (例如 手机宽 390 / A4宽 794 = 0.49)
         let scale = screenWidth / a4WidthPx;
-        
-        // 限制最大缩放为 1 (电脑端不放大)
         if (scale > 1) scale = 1;
 
-        // 应用缩放
         scaler.style.transform = `scale(${scale})`;
-        
-        // 【关键】由于 scale 缩小了视觉大小，但 DOM 依然占据原高度
-        // 我们需要调整父容器的高度，去掉多余的空白
-        // 这里的计算有点复杂，为了简单，我们让 margin-bottom 变成负的
-        // 或者直接不管高度，因为 overflow-y: auto 会处理
-        
-        // 调整 scaler 的边距，让它在缩放后依然居中
         scaler.style.marginBottom = `-${(1 - scale) * 100}%`;
     }
 
-    // 切换模式
     function switchMode(mode) {
         if (mode === 'preview') {
-            render(); // 先渲染内容
+            render();
             document.body.classList.add('mode-preview');
-            
-            // 更新底部栏
-            statusLabel.innerText = "预览 A4 效果";
+            statusLabel.innerText = "预览模式";
             btnToPreview.style.display = 'none';
             btnToEdit.style.display = 'block';
             btnPrint.style.display = 'block';
-
-            // 触发缩放计算
-            setTimeout(fitToScreen, 10); // 延时一点确保 display:flex 生效
-
+            setTimeout(fitToScreen, 10);
         } else {
             document.body.classList.remove('mode-preview');
-            
-            // 更新底部栏
-            statusLabel.innerText = "正在编辑";
+            statusLabel.innerText = "编辑中";
             btnToPreview.style.display = 'block';
             btnToEdit.style.display = 'none';
             btnPrint.style.display = 'none';
@@ -271,13 +248,8 @@
     }
 
     input.addEventListener('input', render);
-    
-    // 监听窗口大小变化（旋转屏幕时自动重算）
     window.addEventListener('resize', fitToScreen);
-
-    // 初始化渲染一次
     render();
 </script>
-
 </body>
 </html>
