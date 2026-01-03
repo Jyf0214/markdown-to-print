@@ -2,49 +2,49 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <!-- 禁用双击缩放，保证应用质感 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Markdown 转 A4 (无多余白页版)</title>
+    <title>Markdown A4 打印 (手机修复版)</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* ---------- 全局基础 ---------- */
+        /* ---------- 基础设置 ---------- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body {
+        body {
             margin: 0; padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: #f0f2f5;
             height: 100vh;
-            overflow: hidden; /* 屏幕浏览时防止双滚动条 */
+            overflow: hidden; /* 禁止 Body 滚动，由内部容器接管 */
         }
 
-        /* ---------- 布局容器 ---------- */
+        /* 布局容器 */
         .container {
-            display: flex;
             width: 100%;
             height: 100%;
+            display: flex;
         }
 
         /* ---------- 左侧：编辑器 ---------- */
         .editor-pane {
-            width: 40%;
+            width: 50%; /* 电脑默认分屏 */
             height: 100%;
             display: flex;
             flex-direction: column;
             background: #2d2d2d;
             border-right: 1px solid #444;
-            z-index: 10;
         }
 
         .toolbar {
-            padding: 10px 15px;
+            height: 50px;
             background: #1e1e1e;
             color: #fff;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            height: 50px;
+            padding: 0 15px;
+            justify-content: space-between;
             flex-shrink: 0;
         }
-        .toolbar h1 { margin: 0; font-size: 16px; }
+        .toolbar h1 { margin: 0; font-size: 16px; font-weight: normal; }
 
         textarea {
             flex: 1;
@@ -57,198 +57,215 @@
             font-size: 16px;
             line-height: 1.6;
             outline: none;
-            font-family: monospace;
         }
 
         /* ---------- 右侧：预览区 ---------- */
         .preview-pane {
-            flex: 1;
+            width: 50%; /* 电脑默认分屏 */
+            height: 100%;
             background: #525659;
-            overflow: auto;
+            overflow-y: auto; /* 允许垂直滚动 */
             display: flex;
-            justify-content: center;
-            padding: 30px 10px;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 0;
+            position: relative;
         }
 
-        /* A4 纸张模拟 (屏幕显示用) */
+        /* A4 纸张样式 */
         .a4-page {
             width: 210mm;
-            min-height: 297mm; /* 屏幕上显示高度，打印时会覆盖此属性 */
+            min-height: 297mm; /* 仅在屏幕预览时生效 */
             background: white;
-            padding: 20mm;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            padding: 20mm; /* 屏幕预览时的内边距 */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            flex-shrink: 0;
             color: #000;
-            flex-shrink: 0; 
         }
 
-        /* 按钮与 FAB */
+        /* 按钮样式 */
         .btn {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .fab-toggle {
-            display: none;
-            position: fixed; bottom: 20px; right: 20px;
-            width: 56px; height: 56px; border-radius: 50%;
             background: #007bff; color: white; border: none;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            font-size: 24px; z-index: 100;
-            justify-content: center; align-items: center; cursor: pointer;
+            padding: 6px 12px; border-radius: 4px; font-size: 14px;
         }
 
-        /* ---------- 移动端适配 ---------- */
+        /* 悬浮切换按钮 (手机专用) */
+        .fab-btn {
+            display: none; /* 电脑端隐藏 */
+            position: fixed; bottom: 30px; right: 20px;
+            width: 60px; height: 60px; border-radius: 50%;
+            background: #007bff; color: white;
+            border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            font-size: 24px; z-index: 999;
+            justify-content: center; align-items: center;
+        }
+
+        /* ---------- 手机端适配逻辑 (核心修复) ---------- */
         @media screen and (max-width: 768px) {
-            .container { display: block; }
-            .editor-pane, .preview-pane { width: 100%; height: 100%; position: absolute; top:0; left:0; }
-            .preview-pane { transform: translateX(100%); transition: transform 0.3s ease; z-index: 20; padding: 10px; align-items: flex-start; }
-            body.show-preview .preview-pane { transform: translateX(0); }
-            .fab-toggle { display: flex; }
-            .a4-page { transform-origin: top center; margin-bottom: 50px; }
-        }
-
-        /* ---------- Markdown 样式 ---------- */
-        .markdown-body { line-height: 1.6; font-size: 11pt; }
-        .markdown-body h1 { border-bottom: 2px solid #eaecef; padding-bottom: 0.3em; margin-top: 0; }
-        .markdown-body img { max-width: 100%; }
-        .markdown-body pre { background: #f6f8fa; padding: 10px; overflow: auto; }
-        .markdown-body table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
-        .markdown-body th, .markdown-body td { border: 1px solid #dfe2e5; padding: 6px 13px; }
-
-        /* =========================================
-           重点修复：打印样式 (完美消除空白页)
-           ========================================= */
-        @media print {
-            /* 1. 隐藏所有无关元素 */
-            .editor-pane, .toolbar, .fab-toggle { display: none !important; }
-
-            /* 2. 重置 HTML/Body 高度和滚动 */
-            html, body {
-                height: auto !important;
-                overflow: visible !important;
-                background: #fff !important;
-                margin: 0 !important;
-                padding: 0 !important;
+            /* 1. 强制变为单栏布局 */
+            .editor-pane, .preview-pane {
+                width: 100%;
+                height: 100%;
+                border: none;
             }
 
-            /* 3. 重置布局容器 */
-            .container, .preview-pane {
-                display: block !important;
-                height: auto !important;
-                width: 100% !important;
-                position: static !important;
-                overflow: visible !important;
-                background: #fff !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                transform: none !important; /* 防止移动端偏移 */
-            }
+            /* 2. 默认状态：只显示编辑器，隐藏预览 */
+            .editor-pane { display: flex; }
+            .preview-pane { display: none; }
 
-            /* 4. 调整 A4 纸容器：核心修复点 */
-            .a4-page {
-                width: 100% !important; /* 宽度跟随纸张 */
-                min-height: 0 !important; /* 【关键】取消最小高度，防止撑开 */
-                height: auto !important;  /* 根据内容自适应 */
-                margin: 0 !important;
-                padding: 0 !important;    /* 【关键】由 @page 控制边距 */
-                box-shadow: none !important;
-                border: none !important;
-            }
+            /* 3. 预览状态 (通过 JS 添加 class 实现) */
+            body.mode-preview .editor-pane { display: none; }
+            body.mode-preview .preview-pane { display: flex; }
 
-            /* 5. 设置打印机页面属性 */
-            @page {
-                size: A4;
-                margin: 20mm; /* 【关键】让浏览器控制边距，内容区会自动变小 */
-            }
+            /* 4. 显示悬浮按钮 */
+            .fab-btn { display: flex; }
 
-            /* 6. 防止最后一个元素的 margin 挤出新的一页 */
-            .markdown-body > *:last-child {
-                margin-bottom: 0 !important;
-                padding-bottom: 0 !important;
+            /* 5. 调整 A4 在手机上的显示，允许横向滚动查看全貌 */
+            .preview-pane {
+                display: none; /* 默认隐藏 */
+                align-items: flex-start; /* 靠左对齐，方便横向滚动 */
+                overflow-x: auto; /* 允许横向滚动 */
+                padding: 10px;
             }
             
-            /* 7. 避免元素内部被分页切断 */
-            pre, blockquote, table, img {
-                page-break-inside: avoid;
+            /* 手机上预览时的顶部工具栏 */
+            .mobile-preview-header {
+                width: 100%;
+                background: #333;
+                color: white;
+                padding: 10px;
+                text-align: center;
+                display: none; /* JS控制显示 */
+                margin-bottom: 10px;
             }
+        }
+
+        /* ---------- Markdown 内容渲染样式 ---------- */
+        .markdown-body { font-size: 11pt; line-height: 1.6; }
+        .markdown-body h1 { border-bottom: 1px solid #ddd; padding-bottom: 0.3em; }
+        .markdown-body img { max-width: 100%; }
+        .markdown-body pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        .markdown-body table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+        .markdown-body th, .markdown-body td { border: 1px solid #ddd; padding: 8px; }
+
+        /* ---------- 打印样式 (修复多页白纸问题) ---------- */
+        @media print {
+            .editor-pane, .fab-btn, .mobile-preview-header { display: none !important; }
+            
+            /* 确保预览区显示 */
+            body.mode-preview .preview-pane { display: block; } 
+            .preview-pane { display: block !important; overflow: visible !important; height: auto !important; padding: 0 !important; background: white; }
+            .container { display: block; height: auto; }
+            
+            html, body { height: auto; overflow: visible; background: white; }
+
+            .a4-page {
+                width: 100% !important;
+                min-height: 0 !important; /* 取消最小高度 */
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important; /* 让 @page 控制边距 */
+                box-shadow: none;
+            }
+
+            @page {
+                size: A4;
+                margin: 20mm; /* 打印机边距 */
+            }
+            
+            /* 防止最后一行挤出新页 */
+            .markdown-body > *:last-child { margin-bottom: 0; }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <!-- 编辑器 -->
     <div class="editor-pane">
         <div class="toolbar">
-            <h1>📝 输入内容</h1>
-            <button class="btn" onclick="window.print()">打印/PDF</button>
+            <h1>Markdown 编辑</h1>
+            <!-- 电脑端打印按钮 -->
+            <button class="btn" onclick="window.print()" style="display: none;" id="pc-print-btn">打印</button>
         </div>
-        <textarea id="markdown-input" placeholder="请输入 Markdown..."></textarea>
+        <textarea id="input" placeholder="请输入内容..."></textarea>
     </div>
 
+    <!-- 预览器 -->
     <div class="preview-pane">
-        <div class="toolbar" style="width: 100%; position: absolute; top:0; left:0; background: rgba(30,30,30,0.9); z-index: 50; display: none;" id="mobile-preview-bar">
-            <h1>📄 预览效果</h1>
-            <button class="btn" onclick="window.print()">🖨️ 打印</button>
+        <!-- 手机端预览时的顶部提示 -->
+        <div class="mobile-preview-header" id="mobile-header">
+            <button class="btn" onclick="window.print()">🖨️ 点击这里打印 / 存为 PDF</button>
+            <div style="font-size: 12px; margin-top:5px; color:#ccc;">(左右滑动可查看完整纸张)</div>
         </div>
-        <div id="a4-output" class="a4-page markdown-body"></div>
+        <div id="output" class="a4-page markdown-body"></div>
     </div>
 </div>
 
-<button class="fab-toggle" id="toggle-btn" onclick="toggleView()">👁️</button>
+<!-- 手机端切换按钮 -->
+<button class="fab-btn" id="fab" onclick="toggleMode()">👁️</button>
 
 <script>
-    const input = document.getElementById('markdown-input');
-    const output = document.getElementById('a4-output');
+    const input = document.getElementById('input');
+    const output = document.getElementById('output');
+    const fab = document.getElementById('fab');
     const body = document.body;
-    const toggleBtn = document.getElementById('toggle-btn');
-    const mobilePreviewBar = document.getElementById('mobile-preview-bar');
+    const mobileHeader = document.getElementById('mobile-header');
+    const pcPrintBtn = document.getElementById('pc-print-btn');
 
-    const defaultText = `# 打印完美版
+    // 默认内容
+    const defaultText = `# 手机端完美修复版
 
-修复了“多出一页白纸”的问题。
-
-## 修复原理
-我们移除了打印时的固定高度限制，并让浏览器接管页面边距。
-
-1. **写满这一页**：你可以尝试多复制这段文字，填满页面。
-2. **只有一页**：如果内容不足一页，现在打印绝对不会出现第二张白纸。
+1. **默认是编辑模式**：打开就是输入框。
+2. **切换预览**：点击右下角蓝色眼睛按钮。
+3. **打印**：预览界面顶部有打印按钮。
 
 ---
-测试列表：
-- 项目 1
-- 项目 2
+
+## 表格测试
+| 项目 | 状态 |
+| :--- | :--- |
+| 手机预览 | ✅ 修复 |
+| 多页白纸 | ✅ 修复 |
+| 打印功能 | ✅ 正常 |
 `;
 
     input.value = defaultText;
 
+    // 渲染函数
     function render() {
-        // .trim() 去除首尾空格，防止最后的换行符产生空段落
-        const text = input.value.trim(); 
+        const text = input.value.trim();
         output.innerHTML = marked.parse(text);
     }
-
+    
+    // 监听输入
     input.addEventListener('input', render);
     render();
 
-    function toggleView() {
-        body.classList.toggle('show-preview');
-        if (body.classList.contains('show-preview')) {
-            toggleBtn.innerHTML = '✏️';
-            if(window.innerWidth <= 768) mobilePreviewBar.style.display = 'flex';
+    // 切换模式 (核心修复逻辑)
+    function toggleMode() {
+        // 切换 body 的 class
+        body.classList.toggle('mode-preview');
+
+        // 检查当前是不是预览模式
+        const isPreview = body.classList.contains('mode-preview');
+
+        if (isPreview) {
+            // 现在是预览模式
+            fab.innerHTML = '✏️'; // 按钮变笔
+            mobileHeader.style.display = 'block'; // 显示手机打印条
         } else {
-            toggleBtn.innerHTML = '👁️';
-            mobilePreviewBar.style.display = 'none';
+            // 现在是编辑模式
+            fab.innerHTML = '👁️'; // 按钮变眼
+            mobileHeader.style.display = 'none'; // 隐藏手机打印条
         }
     }
-    
-    window.addEventListener('resize', () => {
-        if (window.innerWidth > 768) mobilePreviewBar.style.display = 'none';
-        else if (body.classList.contains('show-preview')) mobilePreviewBar.style.display = 'flex';
-    });
+
+    // 简单的响应式处理：电脑上显示打印按钮，手机上隐藏
+    if(window.innerWidth > 768) {
+        pcPrintBtn.style.display = 'block';
+    }
 </script>
+
 </body>
 </html>
