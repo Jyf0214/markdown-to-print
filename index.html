@@ -3,176 +3,198 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Markdown A4 完美分页版</title>
+    <title>万能 A4 双面打印 (MD/PDF/图片)</title>
+    <!-- Markdown 解析库 -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- PDF 解析库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    
+    <script>
+        // 配置 PDF.js Worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+
     <style>
         /* ---------- 基础样式 ---------- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html, body {
-            margin: 0; padding: 0;
-            height: 100%;
-            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; /* 使用通用安全字体 */
-            background-color: #f2f4f7;
-            overflow: hidden;
+            margin: 0; padding: 0; height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f2f4f7; overflow: hidden;
         }
         
         .app-container { display: flex; flex-direction: column; height: 100%; }
 
-        /* 编辑器 */
-        .editor-area {
-            flex: 1; display: flex; flex-direction: column; background: #fff;
+        /* 顶部 Tab */
+        .tabs {
+            display: flex; background: #fff; border-bottom: 1px solid #ddd;
+            height: 44px; flex-shrink: 0;
         }
+        .tab-item {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: #666; cursor: pointer; border-bottom: 2px solid transparent;
+        }
+        .tab-item.active { color: #007bff; border-bottom-color: #007bff; font-weight: bold; }
+
+        /* 内容区容器 */
+        .content-area { flex: 1; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+
+        /* 1. Markdown 编辑器 */
+        #pane-editor {
+            display: none; flex-direction: column; height: 100%; background: #fff;
+        }
+        #pane-editor.active { display: flex; }
         textarea {
             flex: 1; width: 100%; border: none; padding: 15px;
             font-size: 16px; line-height: 1.5; resize: none; outline: none;
         }
 
-        /* 预览区 */
-        .preview-area {
-            flex: 1; display: none;
-            background: #525659; overflow-y: auto;
-            flex-direction: column; align-items: center;
-            padding: 20px 0 100px 0;
+        /* 2. 文件上传区 */
+        #pane-upload {
+            display: none; flex-direction: column; height: 100%; background: #fff;
+            align-items: center; justify-content: center; padding: 20px;
         }
+        #pane-upload.active { display: flex; }
+
+        .upload-box {
+            border: 2px dashed #ccc; border-radius: 10px;
+            width: 100%; max-width: 400px; height: 200px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #fafafa; color: #666; cursor: pointer; transition: 0.2s;
+        }
+        .upload-box:hover { border-color: #007bff; background: #f0f7ff; }
+        .file-list { margin-top: 20px; width: 100%; max-width: 400px; max-height: 150px; overflow-y: auto; font-size: 12px; }
+        .file-item { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #eee; }
+
+        /* 3. 预览区 */
+        #pane-preview {
+            display: none; flex-direction: column; height: 100%;
+            background: #525659; overflow-y: auto; padding: 20px 0 100px 0;
+            align-items: center;
+            position: absolute; top: 0; left: 0; width: 100%; z-index: 50;
+        }
+        #pane-preview.active { display: flex; }
 
         .scaler-container {
-            transform-origin: top center;
-            transition: transform 0.2s ease;
+            transform-origin: top center; transition: transform 0.2s ease;
             display: flex; flex-direction: column; gap: 15px;
         }
 
-        /* 纸张 (屏幕预览) */
+        /* 纸张样式 */
         .sheet {
-            width: 210mm;
-            height: 297mm; /* 屏幕上固定高度，模拟真实纸张 */
+            width: 210mm; height: 297mm;
             background: white;
-            padding: 20mm;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            color: #000;
-            position: relative;
-            overflow: hidden; /* 预览时隐藏溢出，打印时解除 */
+            position: relative; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* 纯文本模式下的 padding */
+        .sheet.text-mode { padding: 20mm; }
+        
+        /* 图片/PDF 模式下的布局 */
+        .sheet.image-mode { padding: 0; justify-content: center; align-items: center; }
+        .sheet.image-mode img, .sheet.image-mode canvas {
+            max-width: 100%; max-height: 100%;
+            object-fit: contain; /* 保持比例 */
         }
 
         /* 页码 */
         .page-number {
-            position: absolute; bottom: 10mm; left: 0; width: 100%;
-            text-align: center; color: #999; font-size: 10pt;
-            pointer-events: none;
+            position: absolute; bottom: 10px; left: 0; width: 100%;
+            text-align: center; color: #ccc; font-size: 12px; pointer-events: none;
+            mix-blend-mode: multiply;
         }
 
-        /* 底部工具栏 */
+        /* 底部操作栏 */
         .bottom-bar {
             background: #fff; border-top: 1px solid #e0e0e0;
-            padding: 10px 15px; z-index: 100;
+            padding: 10px; z-index: 100;
             display: flex; flex-direction: column; gap: 10px;
         }
-
-        .controls-row {
-            display: flex; justify-content: space-between; align-items: center; width: 100%;
-        }
-
-        /* 滑块样式 */
-        .slider-container {
-            display: flex; align-items: center; gap: 10px; width: 100%;
-            background: #f8f9fa; padding: 8px; border-radius: 6px;
-            font-size: 12px; color: #555;
-        }
-        input[type=range] { flex: 1; }
-
+        .controls-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
         .btn {
-            border: 1px solid #ddd; background: #fff; padding: 8px 10px;
-            border-radius: 4px; font-size: 13px; cursor: pointer; flex: 1; text-align: center;
+            border: 1px solid #ddd; background: #fff; padding: 8px 12px;
+            border-radius: 4px; font-size: 13px; cursor: pointer;
         }
         .btn-primary { background: #007bff; color: #fff; border-color: #007bff; }
         .btn-active { background: #e7f1ff; color: #007bff; border-color: #007bff; font-weight: bold; }
 
-        /* 状态切换 */
-        body.mode-preview .editor-area { display: none; }
-        body.mode-preview .preview-area { display: flex; }
-
         /* 隐藏计算区 */
-        #temp-renderer {
-            position: absolute; top: 0; left: 0; width: 170mm; /* A4宽度-边距 */
-            visibility: hidden; pointer-events: none; z-index: -1;
-        }
+        #temp-renderer { position: absolute; top: 0; left: 0; width: 170mm; visibility: hidden; pointer-events: none; }
 
-        /* ---------- Markdown 打印专用样式 (单位使用 pt) ---------- */
-        .markdown-body { 
-            font-size: 11pt; /* 使用 pt 单位，打印更准确 */
-            line-height: 1.5; 
-            color: #000;
-        }
-        .markdown-body h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; font-size: 18pt; margin: 0 0 10pt 0; }
-        .markdown-body h2 { border-bottom: 1px solid #eee; padding-bottom: 0.3em; font-size: 15pt; margin: 15pt 0 10pt 0; }
-        .markdown-body h3 { font-size: 13pt; margin: 12pt 0 8pt 0; }
-        .markdown-body p { margin-bottom: 10pt; text-align: justify; } /* 两端对齐，打印更好看 */
-        .markdown-body table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; }
-        .markdown-body th, .markdown-body td { border: 1px solid #000; padding: 6pt; font-size: 10pt; }
+        /* Markdown 样式 */
+        .markdown-body { font-size: 11pt; line-height: 1.5; color: #000; }
         .markdown-body img { max-width: 100%; }
-        .markdown-body pre { background: #f0f0f0; padding: 8pt; border-radius: 4px; font-size: 10pt; font-family: monospace; white-space: pre-wrap; }
 
-        /* ==================== 打印规则 ==================== */
+        /* ---------- 打印样式 ---------- */
         @media print {
-            .editor-area, .bottom-bar { display: none !important; }
-            html, body, .app-container, .preview-area, .scaler-container {
-                height: auto !important; overflow: visible !important;
-                background: white !important; margin: 0 !important; padding: 0 !important;
-                display: block !important;
-            }
+            .tabs, .editor-area, .bottom-bar, #pane-upload, #pane-editor { display: none !important; }
+            #pane-preview { display: block !important; position: static !important; background: white !important; overflow: visible !important; height: auto !important; padding: 0 !important; }
             .scaler-container { transform: none !important; width: 100% !important; }
-            
             .sheet {
                 margin: 0 !important; box-shadow: none !important; border: none !important;
-                width: 100% !important; height: auto !important; /* 打印时高度自适应，防止内容被切 */
-                page-break-after: always; /* 强制分页 */
-                overflow: visible !important;
+                width: 100% !important; height: 100% !important;
+                page-break-after: always;
             }
-
-            /* 奇偶页控制 */
             body.print-odd .sheet:nth-child(even) { display: none !important; }
             body.print-even .sheet:nth-child(odd) { display: none !important; }
-
-            @page { size: A4; margin: 0; } /* 边距由 padding 控制 */
+            @page { size: A4; margin: 0; }
         }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <div class="editor-area">
-        <textarea id="input" placeholder="输入 Markdown..."></textarea>
+    <div class="tabs">
+        <div class="tab-item active" onclick="setTab('editor')">📝 文字输入</div>
+        <div class="tab-item" onclick="setTab('upload')">📂 上传 PDF/图</div>
     </div>
 
-    <div class="preview-area" id="previewContainer">
-        <div class="scaler-container" id="scaler"></div>
-    </div>
-
-    <div id="temp-renderer" class="markdown-body"></div>
-
-    <div class="bottom-bar">
-        <!-- 调节密度的滑块 (仅在预览模式显示) -->
-        <div class="slider-container" id="densityControl" style="display: none;">
-            <span>填充密度:</span>
-            <input type="range" id="densitySlider" min="80" max="150" value="100">
-            <span id="densityVal">100%</span>
-            <div style="font-size:10px; color:#999; margin-left:5px;">(如果空隙大往右拉)</div>
+    <div class="content-area">
+        <!-- Markdown 编辑器 -->
+        <div id="pane-editor" class="active">
+            <textarea id="input" placeholder="输入 Markdown 内容..."></textarea>
         </div>
 
+        <!-- 文件上传区 -->
+        <div id="pane-upload">
+            <label class="upload-box">
+                <div style="font-size: 24px; margin-bottom: 10px;">📄 📷</div>
+                <div>点击选择 PDF 或 图片</div>
+                <div style="font-size: 12px; margin-top: 5px; color: #999;">支持 .pdf, .jpg, .png</div>
+                <input type="file" id="fileInput" multiple accept=".pdf,image/*" style="display: none;">
+            </label>
+            <div class="file-list" id="fileList"></div>
+            <div style="margin-top: 10px; color: #666; font-size: 12px;">提示：图片将自动一张一页居中打印</div>
+        </div>
+
+        <!-- 预览区 (公用) -->
+        <div id="pane-preview">
+            <div class="scaler-container" id="scaler"></div>
+        </div>
+    </div>
+
+    <!-- 辅助渲染 -->
+    <div id="temp-renderer" class="markdown-body"></div>
+
+    <!-- 底部栏 -->
+    <div class="bottom-bar">
         <div class="controls-row">
-            <div id="infoText" style="font-size: 12px; color: #666;">编辑模式</div>
+            <div id="statusInfo" style="font-size: 12px; color: #666;">准备就绪</div>
             
-            <!-- 编辑模式按钮 -->
-            <div class="btn-group" id="editControls">
-                <button class="btn btn-primary" onclick="switchMode('preview')">预览并分页</button>
+            <!-- 非预览模式显示 -->
+            <div class="btn-group" id="btnGroupEdit">
+                <button class="btn btn-primary" onclick="startPreview()">开始预览</button>
             </div>
 
-            <!-- 预览模式按钮 -->
-            <div class="btn-group" id="previewControls" style="display:none;">
-                <button class="btn" onclick="switchMode('edit')">返回</button>
+            <!-- 预览模式显示 -->
+            <div class="btn-group" id="btnGroupPreview" style="display:none;">
+                <button class="btn" onclick="exitPreview()">返回</button>
                 <button class="btn btn-active" id="btnAll" onclick="setPrintMode('all')">全部</button>
-                <button class="btn" id="btnOdd" onclick="setPrintMode('odd')">奇数(正面)</button>
-                <button class="btn" id="btnEven" onclick="setPrintMode('even')">偶数(反面)</button>
+                <button class="btn" id="btnOdd" onclick="setPrintMode('odd')">正面(奇)</button>
+                <button class="btn" id="btnEven" onclick="setPrintMode('even')">反面(偶)</button>
                 <button class="btn btn-primary" onclick="window.print()">🖨️</button>
             </div>
         </div>
@@ -180,151 +202,207 @@
 </div>
 
 <script>
+    // 状态变量
+    let currentTab = 'editor';
+    let uploadedFiles = [];
+    
+    // DOM 元素
     const input = document.getElementById('input');
     const scaler = document.getElementById('scaler');
     const tempRenderer = document.getElementById('temp-renderer');
-    const densitySlider = document.getElementById('densitySlider');
-    const densityVal = document.getElementById('densityVal');
-    
-    // 默认测试内容
-    let defaultText = `# 奇偶页打印修复版
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    const statusInfo = document.getElementById('statusInfo');
 
-## 遇到"提前换页"怎么办？
-如果你发现页面下方还有很大空白，但内容却跳到了下一页：
+    // 初始化默认文本
+    input.value = `# 双面打印助手 (支持 PDF/图片)
 
-1. 请拖动下方的 **"填充密度"** 滑块。
-2. **向右拖动**：强制塞入更多内容（解决截断问题）。
-3. **向左拖动**：减少每页内容（解决溢出问题）。
+1. **文字模式**：在这里输入 Markdown。
+2. **文件模式**：点击上方 "📂 上传" 标签，选择 PDF 或图片。
+3. **打印**：点击 "开始预览" -> 选择 "正面(奇)" -> 打印 -> 翻面 -> "反面(偶)" -> 打印。
 
-此滑块会调整计算逻辑，适配不同手机的打印引擎。
-
----
+此版本完美解决了截断问题，PDF 和图片将自动适配 A4 纸张。
 `;
-    // 生成长内容
-    for(let i=1; i<=20; i++) {
-        defaultText += `### 第 ${i} 节测试\n这是测试段落。我们会用足够多的文字来填满页面，以便测试分页算法的准确性。如果算法太保守，这里就会出现大片空白。如果太激进，内容就会溢出纸张边界。\n\n`;
-    }
-    input.value = defaultText;
 
-    let currentPrintMode = 'all';
-    let densityRatio = 1.0; // 密度系数
-
-    // 核心分页逻辑
-    function renderAndPaginate() {
-        // 1. 渲染 HTML
-        tempRenderer.innerHTML = marked.parse(input.value);
-        scaler.innerHTML = '';
-
-        // 2. 计算页面容量
-        // A4 高度 297mm，上下边距各 20mm -> 内容高度 257mm
-        // 获取参考 div 的像素高度 (不同屏幕 dpi 结果不同)
-        const refDiv = document.createElement('div');
-        refDiv.style.height = '257mm'; 
-        document.body.appendChild(refDiv);
-        const basePageHeight = refDiv.offsetHeight;
-        document.body.removeChild(refDiv);
-
-        // 3. 应用密度系数 (核心修复点)
-        // 如果用户往右拉 (ratio > 1)，我们认为页面"变高了"，能装更多东西
-        const MAX_HEIGHT = basePageHeight * densityRatio;
-
-        let currentPageIndex = 1;
-        let currentPage = createSheet(currentPageIndex);
-        let currentHeight = 0;
-        let contentContainer = currentPage.querySelector('.markdown-body');
+    // 切换 Tab
+    function setTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-item')[tab === 'editor' ? 0 : 1].classList.add('active');
         
-        scaler.appendChild(currentPage);
+        document.getElementById('pane-editor').classList.remove('active');
+        document.getElementById('pane-upload').classList.remove('active');
+        document.getElementById(`pane-${tab}`).classList.add('active');
+    }
 
-        const elements = Array.from(tempRenderer.children);
+    // 文件选择处理
+    fileInput.addEventListener('change', (e) => {
+        uploadedFiles = Array.from(e.target.files);
+        renderFileList();
+    });
 
-        elements.forEach(el => {
-            // 获取元素包含 margin 的总高度
-            const height = el.getBoundingClientRect().height;
-            const style = window.getComputedStyle(el);
-            const margin = parseFloat(style.marginTop) + parseFloat(style.marginBottom);
-            const totalH = height + margin;
-
-            // 检查是否需要换页
-            // 容错 5px
-            if (currentHeight + totalH > MAX_HEIGHT - 5) {
-                currentPageIndex++;
-                currentPage = createSheet(currentPageIndex);
-                scaler.appendChild(currentPage);
-                contentContainer = currentPage.querySelector('.markdown-body');
-                currentHeight = 0;
-            }
-
-            // 搬运元素
-            contentContainer.appendChild(el);
-            currentHeight += totalH;
+    function renderFileList() {
+        fileList.innerHTML = '';
+        if (uploadedFiles.length === 0) {
+            fileList.innerHTML = '<div style="text-align:center; padding:10px;">未选择文件</div>';
+            return;
+        }
+        uploadedFiles.forEach(f => {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.innerHTML = `<span>${f.name}</span><span>${(f.size/1024).toFixed(1)}KB</span>`;
+            fileList.appendChild(div);
         });
-
-        document.getElementById('infoText').innerText = `共 ${currentPageIndex} 页 (密度: ${Math.round(densityRatio*100)}%)`;
+        statusInfo.innerText = `已选 ${uploadedFiles.length} 个文件`;
     }
 
-    function createSheet(index) {
-        const sheet = document.createElement('div');
-        sheet.className = 'sheet';
-        sheet.innerHTML = `<div class="markdown-body"></div><div class="page-number">- ${index} -</div>`;
-        return sheet;
+    // ========== 核心逻辑：开始预览 ==========
+    async function startPreview() {
+        // UI 切换
+        document.getElementById('pane-preview').classList.add('active');
+        document.getElementById('btnGroupEdit').style.display = 'none';
+        document.getElementById('btnGroupPreview').style.display = 'flex';
+        setPrintMode('all');
+
+        scaler.innerHTML = '<div style="color:white; padding:20px;">正在处理，请稍候...</div>';
+
+        // 根据当前 Tab 决定处理逻辑
+        if (currentTab === 'editor') {
+            processMarkdown();
+        } else {
+            await processFiles();
+        }
+
+        setTimeout(fitToScreen, 100);
     }
 
+    function exitPreview() {
+        document.getElementById('pane-preview').classList.remove('active');
+        document.getElementById('btnGroupEdit').style.display = 'flex';
+        document.getElementById('btnGroupPreview').style.display = 'none';
+        statusInfo.innerText = '准备就绪';
+    }
+
+    // 逻辑 1: 处理 Markdown (复用之前的分页逻辑)
+    function processMarkdown() {
+        scaler.innerHTML = '';
+        tempRenderer.innerHTML = marked.parse(input.value);
+        
+        // 使用相对保守的高度，避免截断
+        const MAX_HEIGHT = 960; // 约 257mm 减去一点容错
+
+        let pageIndex = 1;
+        let sheet = createSheet(pageIndex, 'text');
+        let currentH = 0;
+        let container = sheet.querySelector('.markdown-body');
+        scaler.appendChild(sheet);
+
+        Array.from(tempRenderer.children).forEach(el => {
+            const h = el.offsetHeight + parseFloat(window.getComputedStyle(el).marginTop) + parseFloat(window.getComputedStyle(el).marginBottom);
+            if (currentH + h > MAX_HEIGHT) {
+                pageIndex++;
+                sheet = createSheet(pageIndex, 'text');
+                container = sheet.querySelector('.markdown-body');
+                scaler.appendChild(sheet);
+                currentH = 0;
+            }
+            container.appendChild(el);
+            currentH += h;
+        });
+        statusInfo.innerText = `预览中: 共 ${pageIndex} 页`;
+    }
+
+    // 逻辑 2: 处理文件 (PDF & 图片)
+    async function processFiles() {
+        scaler.innerHTML = '';
+        let totalPages = 0;
+
+        for (const file of uploadedFiles) {
+            if (file.type === 'application/pdf') {
+                // 处理 PDF
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    totalPages++;
+                    const page = await pdf.getPage(i);
+                    const sheet = createSheet(totalPages, 'image');
+                    
+                    // 渲染 PDF 到 Canvas
+                    const canvas = document.createElement('canvas');
+                    // 计算缩放：A4 宽度约为 595pt (72dpi) 或 2480px (300dpi)
+                    // 我们使用 scale 2 保证清晰度
+                    const viewport = page.getViewport({ scale: 2 });
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    const renderContext = {
+                        canvasContext: canvas.getContext('2d'),
+                        viewport: viewport
+                    };
+                    await page.render(renderContext).promise;
+                    
+                    sheet.appendChild(canvas);
+                    scaler.appendChild(sheet);
+                }
+
+            } else if (file.type.startsWith('image/')) {
+                // 处理图片
+                totalPages++;
+                const sheet = createSheet(totalPages, 'image');
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                sheet.appendChild(img);
+                scaler.appendChild(sheet);
+            }
+        }
+        statusInfo.innerText = `预览中: 共 ${totalPages} 页`;
+    }
+
+    // 创建纸张
+    function createSheet(index, mode) {
+        const div = document.createElement('div');
+        div.className = `sheet ${mode === 'text' ? 'text-mode' : 'image-mode'}`;
+        
+        if (mode === 'text') {
+            const body = document.createElement('div');
+            body.className = 'markdown-body';
+            div.appendChild(body);
+        }
+        
+        const num = document.createElement('div');
+        num.className = 'page-number';
+        num.innerText = `- ${index} -`;
+        div.appendChild(num);
+        
+        return div;
+    }
+
+    // 打印模式筛选
     function setPrintMode(mode) {
-        currentPrintMode = mode;
         document.body.classList.remove('print-odd', 'print-even');
         ['btnAll', 'btnOdd', 'btnEven'].forEach(id => document.getElementById(id).classList.remove('btn-active'));
-
-        if (mode === 'all') {
-            document.getElementById('btnAll').classList.add('btn-active');
-        } else if (mode === 'odd') {
+        
+        if (mode === 'all') document.getElementById('btnAll').classList.add('btn-active');
+        if (mode === 'odd') {
             document.body.classList.add('print-odd');
             document.getElementById('btnOdd').classList.add('btn-active');
-        } else if (mode === 'even') {
+        }
+        if (mode === 'even') {
             document.body.classList.add('print-even');
             document.getElementById('btnEven').classList.add('btn-active');
         }
     }
 
+    // 屏幕适配
     function fitToScreen() {
-        if (!document.body.classList.contains('mode-preview')) return;
-        const screenWidth = window.innerWidth - 30; // 留点边
-        // A4 210mm 对应的像素宽 (大概值，用于缩放比例)
-        const a4Px = document.querySelector('.sheet') ? document.querySelector('.sheet').offsetWidth : 794;
-        let scale = screenWidth / a4Px;
+        const width = window.innerWidth - 20;
+        const a4Width = 794; // approx px
+        let scale = width / a4Width;
         if (scale > 1) scale = 1;
         scaler.style.transform = `scale(${scale})`;
-        scaler.style.marginBottom = `-${(1 - scale) * 100}%`;
+        scaler.style.marginBottom = `-${(1-scale)*100}%`;
     }
-
-    function switchMode(mode) {
-        if (mode === 'preview') {
-            renderAndPaginate();
-            document.body.classList.add('mode-preview');
-            document.getElementById('editControls').style.display = 'none';
-            document.getElementById('previewControls').style.display = 'flex';
-            document.getElementById('densityControl').style.display = 'flex'; // 显示滑块
-            setPrintMode('all');
-            setTimeout(fitToScreen, 50);
-        } else {
-            document.body.classList.remove('mode-preview');
-            document.getElementById('editControls').style.display = 'flex';
-            document.getElementById('previewControls').style.display = 'none';
-            document.getElementById('densityControl').style.display = 'none';
-        }
-    }
-
-    // 滑块监听
-    densitySlider.addEventListener('input', (e) => {
-        const val = e.target.value;
-        densityVal.innerText = val + "%";
-        densityRatio = val / 100;
-        // 防抖重新渲染，避免卡顿
-        if(window.renderTimeout) clearTimeout(window.renderTimeout);
-        window.renderTimeout = setTimeout(() => {
-            renderAndPaginate();
-        }, 100);
-    });
-
     window.addEventListener('resize', fitToScreen);
 </script>
 </body>
