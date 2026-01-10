@@ -186,7 +186,7 @@
         <div class="bottom-bar">
             <div class="status-text" id="statusLabel">编辑中</div>
             <div class="action-group">
-                <input type="file" id="imageUpload" accept="image/*" style="display:none;">
+                <input type="file" id="imageUpload" accept="image/*" multiple style="display:none;">
                 <button id="btnUploadImage" class="btn btn-secondary">上传图片</button>
                 <button id="btnToPreview" class="btn btn-primary">预览</button>
                 <button id="btnToEdit" class="btn btn-secondary" style="display:none;">编辑</button>
@@ -271,23 +271,31 @@
             return totalPages;
         }
 
-        // 处理图片上传
+        // 处理图片上传（支持批量）
         btnUploadImage.addEventListener('click', () => {
             imageUpload.click();
         });
 
         imageUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const base64 = e.target.result;
-                    const markdownImage = `![Uploaded Image](${base64})\n`;
-                    input.value += markdownImage;
-                    render();
-                    input.focus();
-                };
-                reader.readAsDataURL(file);
+            const files = event.target.files;
+            if (files.length > 0) {
+                let markdownImages = '';
+                let loadedCount = 0;
+
+                Array.from(files).forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const base64 = e.target.result;
+                        markdownImages += `![Uploaded Image \( {index + 1}]( \){base64})\n\n`;
+                        loadedCount++;
+                        if (loadedCount === files.length) {
+                            input.value += markdownImages;
+                            render();
+                            input.focus();
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
             }
         });
 
