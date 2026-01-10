@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>Markdown A4 多页修复版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown A4 编辑器</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* ---------- 基础样式 (屏幕浏览用) ---------- */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        
+
         html, body {
             margin: 0; padding: 0;
             height: 100%; /* 屏幕上占满全屏 */
@@ -87,7 +87,7 @@
             z-index: 100;
             flex-shrink: 0; /* 防止被挤压 */
         }
-        
+
         /* 状态与按钮 */
         .status-text { font-size: 14px; color: #666; font-weight: 500; }
         .action-group { display: flex; gap: 10px; }
@@ -174,82 +174,133 @@
     </style>
 </head>
 <body>
-
-<div class="app-container">
-    <div class="editor-area">
-        <textarea id="input" placeholder="输入 Markdown..."></textarea>
-    </div>
-
-    <div class="preview-area" id="previewContainer">
-        <div class="a4-scaler" id="scaler">
-            <div id="output" class="a4-page markdown-body"></div>
+    <div class="app-container">
+        <div class="editor-area">
+            <textarea id="input"></textarea>
+        </div>
+        <div class="preview-area">
+            <div id="scaler" class="a4-scaler">
+                <div id="output" class="a4-page markdown-body"></div>
+            </div>
+        </div>
+        <div class="bottom-bar">
+            <div class="status-text" id="statusLabel">编辑中</div>
+            <div class="action-group">
+                <button id="btnToPreview" class="btn btn-primary">预览</button>
+                <button id="btnToEdit" class="btn btn-secondary" style="display:none;">编辑</button>
+                <button id="btnPrint" class="btn btn-primary" style="display:none;">🖨️ 打印所有页 (单/双面)</button>
+                <button id="btnPrintOdd" class="btn btn-primary" style="display:none;">打印奇数页 (正面)</button>
+                <button id="btnPrintEven" class="btn btn-primary" style="display:none;">打印偶数页 (反面)</button>
+            </div>
         </div>
     </div>
 
-    <div class="bottom-bar">
-        <div class="status-text" id="statusLabel">编辑中</div>
-        <div class="action-group">
-            <button class="btn btn-primary" id="btnToPreview" onclick="switchMode('preview')">预览</button>
-            <button class="btn btn-secondary" id="btnToEdit" onclick="switchMode('edit')" style="display:none;">编辑</button>
-            <button class="btn btn-primary" id="btnPrint" onclick="window.print()" style="display:none;">🖨️ 打印</button>
-        </div>
-    </div>
-</div>
+    <script>
+        const input = document.getElementById('input');
+        const output = document.getElementById('output');
+        const scaler = document.getElementById('scaler');
+        const previewArea = document.querySelector('.preview-area');
+        const statusLabel = document.getElementById('statusLabel');
+        const btnToPreview = document.getElementById('btnToPreview');
+        const btnToEdit = document.getElementById('btnToEdit');
+        const btnPrint = document.getElementById('btnPrint');
+        const btnPrintOdd = document.getElementById('btnPrintOdd');
+        const btnPrintEven = document.getElementById('btnPrintEven');
 
-<script>
-    const input = document.getElementById('input');
-    const output = document.getElementById('output');
-    const scaler = document.getElementById('scaler');
-    const statusLabel = document.getElementById('statusLabel');
-    const btnToPreview = document.getElementById('btnToPreview');
-    const btnToEdit = document.getElementById('btnToEdit');
-    const btnPrint = document.getElementById('btnPrint');
+        // 生成大量测试文本以验证多页打印
+        let longText = "# 多页打印测试\n\n此文档用于测试长内容是否会被截断。\n\n";
+        for(let i=1; i<100; i++) longText += `段落 ${i}: 这是一个测试段落，用于填充内容。\n\n`;
+        input.value = longText;
 
-    // 生成大量测试文本以验证多页打印
-    let longText = "# 多页打印测试\n\n此文档用于测试长内容是否会被截断。\n\n";
-    for(let i=1; i<=50; i++) {
-        longText += `### 第 ${i} 章节\n这是一段测试文字，用于填充页面高度，确保能够正确打印出多张纸。如果只能打印第一页，说明 overflow 设置有问题。\n\n`;
-    }
-
-    input.value = longText;
-
-    function render() {
-        output.innerHTML = marked.parse(input.value);
-    }
-
-    // 屏幕适配算法 (仅影响视觉预览，不影响打印)
-    function fitToScreen() {
-        if (!document.body.classList.contains('mode-preview')) return;
-        const a4WidthPx = 794; 
-        const screenWidth = window.innerWidth - 20; 
-        let scale = screenWidth / a4WidthPx;
-        if (scale > 1) scale = 1;
-
-        scaler.style.transform = `scale(${scale})`;
-        scaler.style.marginBottom = `-${(1 - scale) * 100}%`;
-    }
-
-    function switchMode(mode) {
-        if (mode === 'preview') {
-            render();
-            document.body.classList.add('mode-preview');
-            statusLabel.innerText = "预览模式";
-            btnToPreview.style.display = 'none';
-            btnToEdit.style.display = 'block';
-            btnPrint.style.display = 'block';
-            setTimeout(fitToScreen, 10);
-        } else {
-            document.body.classList.remove('mode-preview');
-            statusLabel.innerText = "编辑中";
-            btnToPreview.style.display = 'block';
-            btnToEdit.style.display = 'none';
-            btnPrint.style.display = 'none';
+        function render() {
+            output.innerHTML = marked.parse(input.value);
         }
-    }
 
-    input.addEventListener('input', render);
-    window.addEventListener('resize', fitToScreen);
-    render();
-</script>
+        function fitToScreen() {
+            const availableHeight = previewArea.clientHeight - 100; // approx for padding
+            const pageHeight = scaler.offsetHeight;
+            let scale = availableHeight / pageHeight;
+            if (scale > 1) scale = 1;
+            scaler.style.transform = `scale(${scale})`;
+            scaler.style.marginBottom = `-${(1 - scale) * 100}%`;
+        }
+
+        function switchMode(mode) {
+            if (mode === 'preview') {
+                render();
+                document.body.classList.add('mode-preview');
+                statusLabel.innerText = "预览模式";
+                btnToPreview.style.display = 'none';
+                btnToEdit.style.display = 'block';
+                btnPrint.style.display = 'block';
+                btnPrintOdd.style.display = 'block';
+                btnPrintEven.style.display = 'block';
+                setTimeout(fitToScreen, 10);
+            } else {
+                document.body.classList.remove('mode-preview');
+                statusLabel.innerText = "编辑中";
+                btnToPreview.style.display = 'block';
+                btnToEdit.style.display = 'none';
+                btnPrint.style.display = 'none';
+                btnPrintOdd.style.display = 'none';
+                btnPrintEven.style.display = 'none';
+            }
+        }
+
+        function calculatePages() {
+            const calib = document.createElement('div');
+            calib.style.height = '1mm';
+            calib.style.position = 'absolute';
+            calib.style.visibility = 'hidden';
+            document.body.appendChild(calib);
+            const pxPerMm = calib.offsetHeight;
+            document.body.removeChild(calib);
+
+            const page = document.querySelector('.a4-page');
+            const paddingMm = 20 * 2; // top + bottom
+            const contentHeightPx = page.offsetHeight - (paddingMm * pxPerMm);
+            const contentHeightMm = contentHeightPx / pxPerMm;
+            const pageContentHeightMm = 297 - 40; // A4 height minus top/bottom margins
+            const totalPages = Math.ceil(contentHeightMm / pageContentHeightMm);
+            return totalPages;
+        }
+
+        btnToPreview.addEventListener('click', () => switchMode('preview'));
+        btnToEdit.addEventListener('click', () => switchMode('edit'));
+
+        btnPrint.addEventListener('click', () => {
+            switchMode('preview');
+            window.print();
+        });
+
+        btnPrintOdd.addEventListener('click', () => {
+            switchMode('preview');
+            const pages = calculatePages();
+            let odd = [];
+            for (let i = 1; i <= pages; i += 2) {
+                odd.push(i);
+            }
+            const oddStr = odd.join(',');
+            alert(`总页数: ${pages}\n对于手动双面打印，先打印奇数页 (正面):\n请在打印对话框的“页”字段中输入: ${oddStr}\n打印后，翻转纸张堆放（根据打印机类型，长边或短边翻转），然后打印偶数页。`);
+            window.print();
+        });
+
+        btnPrintEven.addEventListener('click', () => {
+            switchMode('preview');
+            const pages = calculatePages();
+            let even = [];
+            for (let i = 2; i <= pages; i += 2) {
+                even.push(i);
+            }
+            // 可选: even.reverse(); // 如果需要反序打印偶数页（取决于打印机纸张进给方式）
+            const evenStr = even.join(',');
+            alert(`总页数: ${pages}\n对于手动双面打印，接下来打印偶数页 (反面):\n请在打印对话框的“页”字段中输入: ${evenStr}\n如果您的打印机需要反序打印偶数页，请在对话框中选择“反向打印”选项，或手动调整范围为反序。`);
+            window.print();
+        });
+
+        input.addEventListener('input', render);
+        window.addEventListener('resize', fitToScreen);
+        render();
+    </script>
 </body>
 </html>
