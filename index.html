@@ -304,3 +304,28 @@
             document.getElementById('previewControls').style.display = 'flex';
             document.getElementById('densityControl').style.display = 'flex'; // 显示滑块
             setPrintMode('all');
+            setTimeout(fitToScreen, 50);
+        } else {
+            document.body.classList.remove('mode-preview');
+            document.getElementById('editControls').style.display = 'flex';
+            document.getElementById('previewControls').style.display = 'none';
+            document.getElementById('densityControl').style.display = 'none';
+        }
+    }
+
+    // 滑块监听
+    densitySlider.addEventListener('input', (e) => {
+        const val = e.target.value;
+        densityVal.innerText = val + "%";
+        densityRatio = val / 100;
+        // 防抖重新渲染，避免卡顿
+        if(window.renderTimeout) clearTimeout(window.renderTimeout);
+        window.renderTimeout = setTimeout(() => {
+            renderAndPaginate();
+        }, 100);
+    });
+
+    window.addEventListener('resize', fitToScreen);
+</script>
+</body>
+</html>
