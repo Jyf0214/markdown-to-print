@@ -186,6 +186,8 @@
         <div class="bottom-bar">
             <div class="status-text" id="statusLabel">编辑中</div>
             <div class="action-group">
+                <input type="file" id="imageUpload" accept="image/*" style="display:none;">
+                <button id="btnUploadImage" class="btn btn-secondary">上传图片</button>
                 <button id="btnToPreview" class="btn btn-primary">预览</button>
                 <button id="btnToEdit" class="btn btn-secondary" style="display:none;">编辑</button>
                 <button id="btnPrint" class="btn btn-primary" style="display:none;">🖨️ 打印所有页 (单/双面)</button>
@@ -206,6 +208,8 @@
         const btnPrint = document.getElementById('btnPrint');
         const btnPrintOdd = document.getElementById('btnPrintOdd');
         const btnPrintEven = document.getElementById('btnPrintEven');
+        const imageUpload = document.getElementById('imageUpload');
+        const btnUploadImage = document.getElementById('btnUploadImage');
 
         // 生成大量测试文本以验证多页打印
         let longText = "# 多页打印测试\n\n此文档用于测试长内容是否会被截断。\n\n";
@@ -235,6 +239,7 @@
                 btnPrint.style.display = 'block';
                 btnPrintOdd.style.display = 'block';
                 btnPrintEven.style.display = 'block';
+                btnUploadImage.style.display = 'none';
                 setTimeout(fitToScreen, 10);
             } else {
                 document.body.classList.remove('mode-preview');
@@ -244,6 +249,7 @@
                 btnPrint.style.display = 'none';
                 btnPrintOdd.style.display = 'none';
                 btnPrintEven.style.display = 'none';
+                btnUploadImage.style.display = 'block';
             }
         }
 
@@ -264,6 +270,26 @@
             const totalPages = Math.ceil(contentHeightMm / pageContentHeightMm);
             return totalPages;
         }
+
+        // 处理图片上传
+        btnUploadImage.addEventListener('click', () => {
+            imageUpload.click();
+        });
+
+        imageUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const base64 = e.target.result;
+                    const markdownImage = `![Uploaded Image](${base64})\n`;
+                    input.value += markdownImage;
+                    render();
+                    input.focus();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
 
         btnToPreview.addEventListener('click', () => switchMode('preview'));
         btnToEdit.addEventListener('click', () => switchMode('edit'));
