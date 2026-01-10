@@ -51,8 +51,8 @@
             display: none; /* 默认隐藏 */
             background: #525659;
             overflow-y: auto; /* 屏幕上允许内部滚动 */
-            align-items: flex-start;
-            justify-content: center;
+            align-items: center; /* 改为center以便小屏居中 */
+            justify-content: flex-start;
             padding-top: 20px;
             padding-bottom: 80px;
         }
@@ -61,6 +61,7 @@
         .a4-scaler {
             transform-origin: top center;
             transition: transform 0.2s ease;
+            width: 100%; /* 确保容器满宽 */
         }
 
         /* 纸张本体 */
@@ -71,29 +72,30 @@
             padding: 20mm;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             color: #000;
-            /* 关键：让内容撑开高度，而不是固定 */
             height: auto; 
+            margin: 0 auto; /* 居中 */
         }
 
         /* 底部操作栏 */
         .bottom-bar {
-            height: 60px;
+            height: auto; /* 允许高度自适应 */
             background: #fff;
             border-top: 1px solid #e0e0e0;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 10px 20px;
             z-index: 100;
-            flex-shrink: 0; /* 防止被挤压 */
+            flex-shrink: 0;
         }
 
         /* 状态与按钮 */
         .status-text { font-size: 14px; color: #666; font-weight: 500; }
-        .action-group { display: flex; gap: 10px; }
+        .action-group { display: flex; gap: 10px; flex-wrap: wrap; }
         .btn { border: none; border-radius: 6px; padding: 8px 16px; font-size: 14px; font-weight: 500; cursor: pointer; }
         .btn-primary { background: #007bff; color: #fff; }
         .btn-secondary { background: #f0f0f0; color: #333; }
+        .checkbox-label { display: flex; align-items: center; gap: 5px; font-size: 14px; color: #333; }
 
         /* 预览模式切换 */
         body.mode-preview .editor-area { display: none; }
@@ -107,67 +109,47 @@
         .markdown-body pre { background: #f8f9fa; padding: 10px; white-space: pre-wrap; word-wrap: break-word; }
         .markdown-body img { max-width: 100%; }
 
-        /* ==============================================
-           关键修复：打印样式 (修复多页截断)
-           ============================================== */
-        @media print {
-            /* 1. 彻底隐藏 UI 元素 */
-            .editor-area, .bottom-bar, .action-group { display: none !important; }
-
-            /* 2. 强制重置 HTML/Body 高度和溢出 */
-            html, body {
-                height: auto !important;
-                min-height: 0 !important;
-                overflow: visible !important; /* 允许滚动/翻页 */
-                background: white !important;
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-
-            /* 3. 重置布局容器，取消 Flexbox */
-            .app-container {
-                display: block !important;
-                height: auto !important;
-                overflow: visible !important;
-            }
-
-            /* 4. 重置预览区 */
+        /* 移动端优化 */
+        @media (max-width: 768px) {
             .preview-area {
-                display: block !important;
-                height: auto !important;
-                overflow: visible !important;
-                background: white !important;
-                padding: 0 !important;
-                margin: 0 !important;
+                padding: 10px;
+                background: #fff;
+                justify-content: flex-start;
+                align-items: stretch;
             }
-
-            /* 5. 禁用缩放，保证打印清晰度和完整性 */
             .a4-scaler {
                 transform: none !important;
-                width: 100% !important;
-                height: auto !important;
-                margin: 0 !important;
-                padding: 0 !important;
             }
-
-            /* 6. 纸张样式调整：允许无限延伸 */
             .a4-page {
                 width: 100% !important;
-                height: auto !important; /* 让内容决定高度 */
-                min-height: 0 !important;
-                margin: 0 !important;
-                padding: 0 !important; /* 边距交给 @page */
-                box-shadow: none !important;
-                border: none !important;
+                min-height: auto !important;
+                padding: 10mm !important;
+                box-shadow: none;
             }
-
-            /* 7. 打印机设置：由打印机接管分页 */
-            @page {
-                size: A4;
-                margin: 20mm; /* 上下左右留白 */
+            .bottom-bar {
+                flex-direction: column;
+                align-items: flex-start;
             }
+            .action-group {
+                flex-direction: column;
+                width: 100%;
+            }
+            .btn {
+                width: 100%;
+                padding: 12px;
+                font-size: 16px;
+            }
+        }
 
-            /* 8. 优化分页逻辑 (防止标题或表格被切断) */
+        /* 打印样式 */
+        @media print {
+            .editor-area, .bottom-bar, .action-group { display: none !important; }
+            html, body { height: auto !important; overflow: visible !important; background: white !important; margin: 0 !important; padding: 0 !important; }
+            .app-container { display: block !important; height: auto !important; overflow: visible !important; }
+            .preview-area { display: block !important; height: auto !important; overflow: visible !important; background: white !important; padding: 0 !important; margin: 0 !important; }
+            .a4-scaler { transform: none !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 0 !important; }
+            .a4-page { width: 100% !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important; }
+            @page { size: A4; margin: 20mm; }
             h1, h2, h3 { page-break-after: avoid; }
             table, pre, blockquote { page-break-inside: avoid; }
         }
@@ -190,9 +172,10 @@
                 <button id="btnUploadImage" class="btn btn-secondary">上传图片</button>
                 <button id="btnToPreview" class="btn btn-primary">预览</button>
                 <button id="btnToEdit" class="btn btn-secondary" style="display:none;">编辑</button>
-                <button id="btnPrint" class="btn btn-primary" style="display:none;">🖨️ 打印所有页 (单/双面)</button>
-                <button id="btnPrintOdd" class="btn btn-primary" style="display:none;">打印奇数页 (正面)</button>
-                <button id="btnPrintEven" class="btn btn-primary" style="display:none;">打印偶数页 (反面)</button>
+                <button id="btnPrint" class="btn btn-primary" style="display:none;">🖨️ 打印所有页</button>
+                <button id="btnPrintOdd" class="btn btn-primary" style="display:none;">打印奇数页</button>
+                <button id="btnPrintEven" class="btn btn-primary" style="display:none;">打印偶数页</button>
+                <label id="reverseEvenLabel" class="checkbox-label" style="display:none;"><input type="checkbox" id="reverseEven"> 反转偶数页顺序</label>
             </div>
         </div>
     </div>
@@ -210,8 +193,10 @@
         const btnPrintEven = document.getElementById('btnPrintEven');
         const imageUpload = document.getElementById('imageUpload');
         const btnUploadImage = document.getElementById('btnUploadImage');
+        const reverseEven = document.getElementById('reverseEven');
+        const reverseEvenLabel = document.getElementById('reverseEvenLabel');
 
-        // 生成大量测试文本以验证多页打印
+        // 测试文本
         let longText = "# 多页打印测试\n\n此文档用于测试长内容是否会被截断。\n\n";
         for(let i=1; i<100; i++) longText += `段落 ${i}: 这是一个测试段落，用于填充内容。\n\n`;
         input.value = longText;
@@ -221,12 +206,17 @@
         }
 
         function fitToScreen() {
-            const availableHeight = previewArea.clientHeight - 100; // approx for padding
-            const pageHeight = scaler.offsetHeight;
-            let scale = availableHeight / pageHeight;
-            if (scale > 1) scale = 1;
-            scaler.style.transform = `scale(${scale})`;
-            scaler.style.marginBottom = `-${(1 - scale) * 100}%`;
+            if (window.innerWidth > 768) {
+                const availableHeight = previewArea.clientHeight - 100;
+                const pageHeight = scaler.offsetHeight;
+                let scale = availableHeight / pageHeight;
+                if (scale > 1) scale = 1;
+                scaler.style.transform = `scale(${scale})`;
+                scaler.style.marginBottom = `-${(1 - scale) * 100}%`;
+            } else {
+                scaler.style.transform = 'scale(1)';
+                scaler.style.marginBottom = '0';
+            }
         }
 
         function switchMode(mode) {
@@ -240,6 +230,7 @@
                 btnPrintOdd.style.display = 'block';
                 btnPrintEven.style.display = 'block';
                 btnUploadImage.style.display = 'none';
+                reverseEvenLabel.style.display = 'block';
                 setTimeout(fitToScreen, 10);
             } else {
                 document.body.classList.remove('mode-preview');
@@ -250,6 +241,7 @@
                 btnPrintOdd.style.display = 'none';
                 btnPrintEven.style.display = 'none';
                 btnUploadImage.style.display = 'block';
+                reverseEvenLabel.style.display = 'none';
             }
         }
 
@@ -263,30 +255,24 @@
             document.body.removeChild(calib);
 
             const page = document.querySelector('.a4-page');
-            const paddingMm = 20 * 2; // top + bottom
+            const paddingMm = 20 * 2;
             const contentHeightPx = page.offsetHeight - (paddingMm * pxPerMm);
             const contentHeightMm = contentHeightPx / pxPerMm;
-            const pageContentHeightMm = 297 - 40; // A4 height minus top/bottom margins
-            const totalPages = Math.ceil(contentHeightMm / pageContentHeightMm);
-            return totalPages;
+            const pageContentHeightMm = 297 - 40;
+            return Math.ceil(contentHeightMm / pageContentHeightMm);
         }
 
-        // 处理图片上传（支持批量）
-        btnUploadImage.addEventListener('click', () => {
-            imageUpload.click();
-        });
-
+        // 图片上传
+        btnUploadImage.addEventListener('click', () => imageUpload.click());
         imageUpload.addEventListener('change', (event) => {
             const files = event.target.files;
             if (files.length > 0) {
                 let markdownImages = '';
                 let loadedCount = 0;
-
                 Array.from(files).forEach((file, index) => {
                     const reader = new FileReader();
                     reader.onload = (e) => {
-                        const base64 = e.target.result;
-                        markdownImages += `![Uploaded Image \( {index + 1}]( \){base64})\n\n`;
+                        markdownImages += `![Image \( {index + 1}]( \){e.target.result})\n\n`;
                         loadedCount++;
                         if (loadedCount === files.length) {
                             input.value += markdownImages;
@@ -310,25 +296,19 @@
         btnPrintOdd.addEventListener('click', () => {
             switchMode('preview');
             const pages = calculatePages();
-            let odd = [];
-            for (let i = 1; i <= pages; i += 2) {
-                odd.push(i);
-            }
+            const odd = Array.from({length: pages}, (_, i) => i + 1).filter(n => n % 2 === 1);
             const oddStr = odd.join(',');
-            alert(`总页数: ${pages}\n对于手动双面打印，先打印奇数页 (正面):\n请在打印对话框的“页”字段中输入: ${oddStr}\n打印后，翻转纸张堆放（根据打印机类型，长边或短边翻转），然后打印偶数页。`);
+            alert(`输入页码: ${oddStr}`);
             window.print();
         });
 
         btnPrintEven.addEventListener('click', () => {
             switchMode('preview');
             const pages = calculatePages();
-            let even = [];
-            for (let i = 2; i <= pages; i += 2) {
-                even.push(i);
-            }
-            // 可选: even.reverse(); // 如果需要反序打印偶数页（取决于打印机纸张进给方式）
+            let even = Array.from({length: pages}, (_, i) => i + 1).filter(n => n % 2 === 0);
+            if (reverseEven.checked) even.reverse();
             const evenStr = even.join(',');
-            alert(`总页数: ${pages}\n对于手动双面打印，接下来打印偶数页 (反面):\n请在打印对话框的“页”字段中输入: ${evenStr}\n如果您的打印机需要反序打印偶数页，请在对话框中选择“反向打印”选项，或手动调整范围为反序。`);
+            alert(`输入页码: ${evenStr}`);
             window.print();
         });
 
